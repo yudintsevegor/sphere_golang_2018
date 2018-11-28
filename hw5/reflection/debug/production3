@@ -1,0 +1,224 @@
+package main
+
+import (
+	"fmt"
+	"reflect"
+	"encoding/json"
+)
+
+type Simple struct {
+		ID       int
+		Username string
+		Active   bool
+	}
+type ErrorCase struct {
+		Result   interface{}
+		JsonData string
+}
+
+type IDBlock struct {
+	ID int
+}
+
+type Complex struct {
+	SubSimple  Simple
+	ManySimple []Simple
+	Blocks     []IDBlock
+}
+
+func i2s(data interface{}, out interface{}) error {
+	// todo	
+	fmt.Println("OUT: ",out)
+	outType :=  reflect.TypeOf(out)
+	fmt.Println("OutType: ",outType.Elem())
+	fmt.Println("DATA: ", data)
+	//fmt.Println("interface: ", data)
+	val := reflect.ValueOf(data)
+	fmt.Println("value: ", val)
+	fmt.Println("type: ", val.Type())
+	fmt.Println("kind: ", val.Kind())
+
+	outVal := reflect.ValueOf(out)
+	fmt.Println("OutVal: ", outVal)
+
+	outVal.Elem().Set(reflect.MakeSlice(outType.Elem(), 1, 1))
+	fmt.Println("OUT SLICE: ", outVal)
+
+	if val.Kind() == reflect.Slice {
+		fmt.Println("Slice")
+		fmt.Println(val.Len())
+	} else if val.Kind() == reflect.Map{
+		fmt.Println("MAP")
+	}
+
+/**/
+	for i := 0; i < val.Len(); i++ {
+		fmt.Println("I: ", i)
+		elemFromSlice := val.Index(i)
+		fmt.Println(elemFromSlice)
+		fmt.Println("type: ", elemFromSlice.Type())
+
+		if elemFromSlice.Kind() == reflect.Map{
+			fmt.Println("HELLO")
+		} else {
+			fmt.Println("kind: ", elemFromSlice.Kind())
+			//fmt.Println("kindMap: ", reflect.Map)
+		}
+
+		mapStringInterface := elemFromSlice.Interface().(map[string]interface{})
+		lenMap := len(mapStringInterface)
+		//fmt.Println(lenMap)
+
+		refStruct := []reflect.StructField{}
+		for ind, key := range mapStringInterface {
+			fmt.Println(ind, reflect.TypeOf(ind))
+			fmt.Println(key, reflect.TypeOf(key))
+
+			StructField :=  reflect.StructField{
+					Name: ind,
+					Type: reflect.TypeOf(key) }
+			refStruct = append(refStruct, StructField)
+		}
+
+		//fmt.Println(refStruct)
+		typ := reflect.StructOf(refStruct)
+		fmt.Println(typ)
+		kek := reflect.New(typ).Elem()
+		//kek.Field(2).SetBool(true)
+		fmt.Println(kek)
+		//lol := reflect.ValueOf(kek)
+		//fmt.Println(lol)
+
+		for j := 0; j < lenMap; j++{
+			fmt.Println("J: ", j)
+			typeField := kek.Type().Field(j)
+			valueField := kek.Field(j)
+			k := mapStringInterface[typeField.Name]
+			//fmt.Println("FieldName: ", typeField.Name)
+			//fmt.Println("Field: ", valueField)
+
+			switch t := k.(type){
+			case bool:
+				fmt.Println("BOOL: ", reflect.TypeOf(t), t)
+				valueField.SetBool(t)
+			case string:
+				fmt.Println("STRING: ", reflect.TypeOf(t), t)
+				valueField.SetString(t)
+			case float64:
+				fmt.Println("FLOAT: ", reflect.TypeOf(t), t)
+				valueField.SetFloat(float64(t))
+			}
+		}
+	//fmt.Println(kek, reflect.TypeOf(kek))
+	//fmt.Println(outVal.Elem(), reflect.TypeOf(outVal.Elem()))
+	//result := outVal.Elem().Slice(0, outVal.Elem().Cap())
+	//outVal.Elem().Set(reflect.Append(result, kek))
+	//reflect.Append(outVal.Elem(), kek)
+	}
+/**
+	sliceOfKeys := val.MapKeys()
+	mapka := make(map[string]reflect.Value, 1)
+
+	for _, key := range sliceOfKeys{
+		for i := 0; i < outVal.NumField(); i++{
+			typeField := outVal.Type().Field(i)
+			if key.Interface().(string) == typeField.Name{
+				mapka[typeField.Name] = key
+			}
+		}
+	}
+
+	fmt.Println("MAP: ", mapka)
+
+	for i := 0; i < outVal.NumField(); i++ {
+		valueField := outVal.Field(i)
+		typeField := outVal.Type().Field(i)
+		k := val.MapIndex(mapka[typeField.Name])
+		fmt.Println("FieldName: ", typeField.Name)
+		fmt.Println("K: ", k)
+		fmt.Println("Field: ", valueField)
+
+		switch t := k.Interface().(type){
+		case bool:
+			fmt.Println("BOOL: ", reflect.TypeOf(t), t)
+			valueField.SetBool(t)
+		case string:
+			fmt.Println("STRING: ", reflect.TypeOf(t), t)
+			valueField.SetString(t)
+		case float64:
+			fmt.Println("INT: ", reflect.TypeOf(t), t)
+			valueField.SetInt(int64(t))
+		}
+	}
+/**/
+	fmt.Println("OUT: ", out)
+
+	return nil
+}
+
+func main() {
+
+	/**
+	expected := &Simple{
+		ID:       42,
+		Username: "rvasily",
+		Active:   true,
+	}
+	result := new(Simple)
+	/**/
+	smpl := Simple{
+		ID:       42,
+		Username: "rvasily",
+		Active:   true,
+	}
+	expected := []Simple{smpl, smpl}
+	result := []Simple{}
+
+	/**
+	smpl := Simple{
+		ID:       42,
+		Username: "rvasily",
+		Active:   true,
+	}
+	expected := &Complex{
+		SubSimple:  smpl,
+		ManySimple: []Simple{smpl, smpl},
+		Blocks:     []IDBlock{IDBlock{42}, IDBlock{42}},
+	}
+	/**/
+
+	jsonRaw, _ := json.Marshal(expected)
+	fmt.Println("jsonStr: ", string(jsonRaw))
+
+	var tmpData interface{}
+	json.Unmarshal(jsonRaw, &tmpData)
+
+	err := i2s(tmpData, &result)
+
+	fmt.Println("ERROR: ", err)
+	fmt.Println("RESULT: ", result)
+	//fmt.Println("DATAStruct: ", tmpData)
+	fmt.Println("EXPECTED: ", expected)
+
+	fmt.Println(reflect.DeepEqual(expected, result))
+
+/*
+	// аккуратно в этом тесте
+	// писать надо именно в то что пришло
+	cases := []ErrorCase{
+		// "Active":"DA" - string вместо bool
+		ErrorCase{
+			&Simple{},
+			`{"ID":42,"Username":"rvasily","Active":"DA"}`,
+		},
+	}
+	for _, item := range cases {
+		var tmpData interface{}
+		fmt.Println(item.JsonData)
+		json.Unmarshal([]byte(item.JsonData), &tmpData)
+		inType := reflect.ValueOf(item.Result).Type()
+
+		fmt.Println(inType)
+	}
+/**/
+}
